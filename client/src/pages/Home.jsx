@@ -207,30 +207,6 @@ export default function Home() {
             </div>
           )}
         </div>
-
-        <button 
-          onClick={handleLogout}
-          style={{
-            background: "#f44336",
-            color: "white",
-            padding: "12px 24px",
-            borderRadius: "5px",
-            border: "none",
-            cursor: "pointer",
-            fontWeight: "500",
-            transition: "all 0.2s"
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.background = "#d32f2f";
-            e.target.style.transform = "translateY(-2px)";
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = "#f44336";
-            e.target.style.transform = "translateY(0)";
-          }}
-        >
-          🚪 Logout
-        </button>
       </div>
 
       {/* Error Message */}

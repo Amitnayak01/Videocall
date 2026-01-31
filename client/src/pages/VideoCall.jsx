@@ -818,7 +818,6 @@ export default function VideoCall() {
         >
           {isSpeakerOff ? <VolumeX size={22} color="#fff" /> : <Volume2 size={22} color="#fff" />}
         </button>
-
         <button
           onClick={() => setShowChat(!showChat)}
           className="control-btn"
@@ -880,7 +879,6 @@ export default function VideoCall() {
               </div>
             ))}
           </div>
-
           <div style={{
             padding: '16px',
             borderTop: '1px solid rgba(255, 255, 255, 0.1)',
