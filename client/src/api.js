@@ -1,2 +1,18 @@
 import axios from "axios";
-export default axios.create({ baseURL: "https://video-call-961n.onrender.com/api" });
+
+const api = axios.create({
+  baseURL:"http://localhost:5000/api"
+});
+
+api.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem("token");
+      window.location = "/login";
+    }
+    return Promise.reject(err);
+  }
+);
+
+export default api;
