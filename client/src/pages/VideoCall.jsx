@@ -5,7 +5,14 @@ import React from "react";
 export default function VideoCall() {
   const localRef = useRef();
   const remoteRef = useRef();
-  const pc = useRef(new RTCPeerConnection());
+const pc = useRef(
+  new RTCPeerConnection({
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" }
+    ]
+  })
+);
+
 
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
