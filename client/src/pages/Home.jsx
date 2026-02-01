@@ -11,7 +11,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  const [incomingCall, setIncomingCall] = useState(null);
   const nav = useNavigate();
   const token = localStorage.getItem("token");
 
@@ -27,6 +26,9 @@ export default function Home() {
         if (!mounted) return;
 
         setCurrentUser(res.data);
+        
+        // Store userId in localStorage for CallContext
+        localStorage.setItem("userId", res.data._id);
 
         // 🔥 TELL SERVER THIS USER IS ONLINE
         socket.emit("user-online", res.data._id);
@@ -35,30 +37,7 @@ export default function Home() {
         socket.on("online-users", (users) => {
           if (mounted) {
             setOnlineUsers(users);
-          }
-        });
-
-        // 📞 LISTEN FOR INCOMING CALLS
-        socket.on("incoming-call", ({ fromUserId, fromUsername, offer }) => {
-          if (mounted) {
-            console.log("📞 Incoming call from:", fromUsername || fromUserId);
-            setIncomingCall({ fromUserId, fromUsername, offer });
-            
-            // Play notification sound (optional)
-            try {
-              const audio = new Audio('/notification.mp3');
-              audio.play().catch(e => console.log("Audio play failed:", e));
-            } catch (e) {
-              console.log("Audio not available");
-            }
-          }
-        });
-
-        // 📵 LISTEN FOR CALL DECLINED
-        socket.on("call-declined", () => {
-          if (mounted) {
-            setIncomingCall(null);
-            alert("Call was declined");
+            console.log("📊 Online users received:", users);
           }
         });
 
@@ -76,8 +55,6 @@ export default function Home() {
     return () => {
       mounted = false;
       socket.off("online-users");
-      socket.off("incoming-call");
-      socket.off("call-declined");
     };
   }, []);
 
@@ -103,6 +80,7 @@ export default function Home() {
   const handleLogout = () => {
     socket.emit("user-offline", currentUser?._id);
     localStorage.removeItem("token");
+    localStorage.removeItem("userId");
     nav("/login");
   };
 
@@ -116,38 +94,17 @@ export default function Home() {
     return profilePic; // Cloudinary URL already full
   };
 
-  // 📞 ACCEPT INCOMING CALL
-  const acceptCall = () => {
-    if (!incomingCall) return;
-    
-    console.log("✅ Accepting call from:", incomingCall.fromUserId);
-    
-    // Navigate to call page with incoming call parameters
-    nav(`/call?incoming=true&from=${incomingCall.fromUserId}`);
-    
-    // Clear the incoming call state
-    setIncomingCall(null);
-  };
-
-  // 📵 DECLINE INCOMING CALL
-  const declineCall = () => {
-    if (!incomingCall) return;
-    
-    console.log("❌ Declining call from:", incomingCall.fromUserId);
-    
-    // Notify the caller that call was declined
-    socket.emit("decline-call", { toUserId: incomingCall.fromUserId });
-    
-    // Clear the incoming call state
-    setIncomingCall(null);
-  };
-
   const filteredUsers = users.filter(u => {
     // Filter out current user from the list
     if (currentUser && u._id === currentUser._id) return false;
     // Search filter
     return u.username.toLowerCase().includes(search.toLowerCase());
   });
+
+  // 🔥 CALCULATE OTHER ONLINE USERS (excluding current user)
+  const otherOnlineUsersCount = currentUser 
+    ? onlineUsers.filter(id => id !== currentUser._id).length 
+    : onlineUsers.length;
 
   if (loading && users.length === 0) {
     return (
@@ -202,7 +159,8 @@ export default function Home() {
                   display: "inline-block",
                   animation: "pulse 2s infinite"
                 }}></span>
-                Online ({onlineUsers.length} users active)
+                {/* 🔥 FIXED: Show other users online (excluding yourself) */}
+                Online ({otherOnlineUsersCount} {otherOnlineUsersCount === 1 ? 'user' : 'users'} active)
               </p>
             </div>
           )}
@@ -530,128 +488,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* 📞 INCOMING CALL POPUP */}
-      {incomingCall && (
-        <div style={{
-          position: "fixed",
-          bottom: "30px",
-          right: "30px",
-          background: "linear-gradient(135deg, #1e1e1e 0%, #2b2b2b 100%)",
-          padding: "25px",
-          borderRadius: "15px",
-          boxShadow: "0 10px 40px rgba(0,0,0,0.6), 0 0 20px rgba(33,150,243,0.3)",
-          zIndex: 9999,
-          minWidth: "320px",
-          border: "2px solid #2196F3",
-          animation: "slideIn 0.3s ease-out"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", marginBottom: "15px" }}>
-            <div style={{
-              width: "50px",
-              height: "50px",
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "24px",
-              fontWeight: "bold",
-              color: "white",
-              marginRight: "15px",
-              animation: "pulse 2s infinite"
-            }}>
-              {incomingCall.fromUsername ? incomingCall.fromUsername.charAt(0).toUpperCase() : "?"}
-            </div>
-            <div style={{ flex: 1 }}>
-              <h3 style={{ margin: "0 0 5px 0", fontSize: "18px" }}>📞 Incoming Call</h3>
-              <p style={{ margin: 0, color: "#888", fontSize: "14px" }}>
-                {incomingCall.fromUsername || "Unknown user"} is calling...
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button 
-              onClick={acceptCall} 
-              style={{
-                flex: 1,
-                background: "linear-gradient(135deg, #00c853 0%, #00e676 100%)",
-                color: "white",
-                padding: "12px 20px",
-                borderRadius: "8px",
-                border: "none",
-                cursor: "pointer",
-                fontWeight: "600",
-                fontSize: "14px",
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px"
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = "scale(1.05)";
-                e.target.style.boxShadow = "0 5px 15px rgba(0,200,83,0.4)";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = "scale(1)";
-                e.target.style.boxShadow = "none";
-              }}
-            >
-              ✓ Accept
-            </button>
-
-            <button 
-              onClick={declineCall} 
-              style={{
-                flex: 1,
-                background: "linear-gradient(135deg, #f44336 0%, #e53935 100%)",
-                color: "white",
-                padding: "12px 20px",
-                borderRadius: "8px",
-                border: "none",
-                cursor: "pointer",
-                fontWeight: "600",
-                fontSize: "14px",
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px"
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = "scale(1.05)";
-                e.target.style.boxShadow = "0 5px 15px rgba(244,67,54,0.4)";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = "scale(1)";
-                e.target.style.boxShadow = "none";
-              }}
-            >
-              ✗ Decline
-            </button>
-          </div>
-
-          {/* Ringing animation indicator */}
-          <div style={{
-            position: "absolute",
-            top: "-10px",
-            right: "-10px",
-            width: "30px",
-            height: "30px",
-            borderRadius: "50%",
-            background: "#2196F3",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "16px",
-            animation: "bounce 1s infinite"
-          }}>
-            🔔
-          </div>
-        </div>
-      )}
-
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
@@ -661,22 +497,6 @@ export default function Home() {
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
-        }
-        
-        @keyframes slideIn {
-          from {
-            transform: translateX(400px);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-        
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
         }
       `}</style>
     </div>
