@@ -149,8 +149,28 @@ export default function VideoCall() {
       paused: remoteVideo.current.paused,
       readyState: remoteVideo.current.readyState,
       networkState: remoteVideo.current.networkState,
-      srcObject: !!remoteVideo.current.srcObject
+      srcObject: !!remoteVideo.current.srcObject,
+      videoWidth: remoteVideo.current.videoWidth,
+      videoHeight: remoteVideo.current.videoHeight,
+      clientWidth: remoteVideo.current.clientWidth,
+      clientHeight: remoteVideo.current.clientHeight
     });
+    
+    // Check if the stream has video tracks
+    if (remoteVideo.current.srcObject) {
+      const stream = remoteVideo.current.srcObject;
+      const videoTracks = stream.getVideoTracks();
+      console.log("📹 Video tracks in stream:", videoTracks.length);
+      videoTracks.forEach((track, index) => {
+        console.log(`  Track ${index}:`, {
+          kind: track.kind,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+          label: track.label
+        });
+      });
+    }
     
     const attemptPlay = () => {
       if (remoteVideo.current && remoteVideo.current.paused) {
@@ -163,7 +183,9 @@ export default function VideoCall() {
               console.log("📊 Video playing state:", {
                 paused: remoteVideo.current?.paused,
                 currentTime: remoteVideo.current?.currentTime,
-                readyState: remoteVideo.current?.readyState
+                readyState: remoteVideo.current?.readyState,
+                videoWidth: remoteVideo.current?.videoWidth,
+                videoHeight: remoteVideo.current?.videoHeight
               });
               setShowPlayButton(false);
             })
@@ -745,9 +767,29 @@ export default function VideoCall() {
             height: '100%',
             objectFit: 'cover'
           }}
-          onLoadedMetadata={() => console.log("🎬 Remote video onLoadedMetadata event fired")}
+          onLoadedMetadata={() => {
+            console.log("🎬 Remote video onLoadedMetadata event fired");
+            if (remoteVideo.current) {
+              console.log("📐 Video dimensions:", {
+                videoWidth: remoteVideo.current.videoWidth,
+                videoHeight: remoteVideo.current.videoHeight,
+                clientWidth: remoteVideo.current.clientWidth,
+                clientHeight: remoteVideo.current.clientHeight
+              });
+            }
+          }}
           onPlay={() => console.log("▶️ Remote video onPlay event fired")}
-          onPlaying={() => console.log("▶️ Remote video onPlaying event fired")}
+          onPlaying={() => {
+            console.log("▶️ Remote video onPlaying event fired");
+            if (remoteVideo.current) {
+              console.log("📊 Final video state:", {
+                videoWidth: remoteVideo.current.videoWidth,
+                videoHeight: remoteVideo.current.videoHeight,
+                paused: remoteVideo.current.paused,
+                currentTime: remoteVideo.current.currentTime
+              });
+            }
+          }}
           onPause={() => console.log("⏸️ Remote video onPause event fired")}
           onError={(e) => console.error("❌ Remote video error:", e)}
         />
