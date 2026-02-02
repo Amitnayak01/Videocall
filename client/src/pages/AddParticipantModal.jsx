@@ -106,7 +106,7 @@ export default function AddParticipantModal({
     if (profilePic.startsWith('http://') || profilePic.startsWith('https://')) {
       return profilePic;
     }
-    const baseUrl = 'http://localhost:5000';
+    const baseUrl = 'https://video-call-961n.onrender.com';
     const cleanPath = profilePic.startsWith('/') ? profilePic : `/${profilePic}`;
     return `${baseUrl}${cleanPath}`;
   };
