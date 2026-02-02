@@ -145,6 +145,12 @@ export default function VideoCall() {
     if (!hasRemoteStream || !remoteVideo.current) return;
 
     console.log("🎬 Attempting to play remote video...");
+    console.log("📊 Video element state:", {
+      paused: remoteVideo.current.paused,
+      readyState: remoteVideo.current.readyState,
+      networkState: remoteVideo.current.networkState,
+      srcObject: !!remoteVideo.current.srcObject
+    });
     
     const attemptPlay = () => {
       if (remoteVideo.current && remoteVideo.current.paused) {
@@ -154,6 +160,11 @@ export default function VideoCall() {
           playPromise
             .then(() => {
               console.log("✅ Remote video playing successfully");
+              console.log("📊 Video playing state:", {
+                paused: remoteVideo.current?.paused,
+                currentTime: remoteVideo.current?.currentTime,
+                readyState: remoteVideo.current?.readyState
+              });
               setShowPlayButton(false);
             })
             .catch(error => {
