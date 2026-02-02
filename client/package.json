@@ -1,11 +1,12 @@
 {
   "name": "video-call-client",
   "version": "1.0.0",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
+ "scripts": {
+  "dev": "vite",
+  "build": "node ./node_modules/vite/bin/vite.js build",
+  "preview": "vite preview"
+}
+,
   "dependencies": {
     "axios": "^1.6.2",
     "framer-motion": "^12.29.2",
