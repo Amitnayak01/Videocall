@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useCall } from "../CallContext";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Phone, Monitor, Grid, Volume2, VolumeX, Maximize, Minimize, User, Wifi, WifiOff } from "lucide-react";
+import { RefreshCcw } from "lucide-react";
+
 
 const ICE_CONFIG = {
   iceServers: [
@@ -42,7 +44,9 @@ export default function VideoCall() {
   const [showPlayButton, setShowPlayButton] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState("user"); // "user" = front, "environment" = back
 
+  
   // Detect mobile
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
@@ -78,6 +82,41 @@ export default function VideoCall() {
     if (remoteVideo.current) remoteVideo.current.srcObject = null;
     navigate(-1);
   }, [navigate]);
+
+  const switchCamera = async () => {
+  try {
+    if (!localStream.current) return;
+
+    const currentVideoTrack = localStream.current.getVideoTracks()[0];
+    if (currentVideoTrack) currentVideoTrack.stop();
+
+    const newFacing = cameraFacing === "user" ? "environment" : "user";
+
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: newFacing } },
+      audio: false
+    });
+
+    const newVideoTrack = newStream.getVideoTracks()[0];
+
+    // Replace track in peer connection
+    const sender = peerConnection.current
+      ?.getSenders()
+      .find(s => s.track?.kind === "video");
+
+    if (sender) await sender.replaceTrack(newVideoTrack);
+
+    // Update local stream
+    localStream.current.removeTrack(currentVideoTrack);
+    localStream.current.addTrack(newVideoTrack);
+
+    localVideo.current.srcObject = localStream.current;
+
+    setCameraFacing(newFacing);
+  } catch (err) {
+    console.error("Camera switch error:", err);
+  }
+};
 
   // Socket Events
   useEffect(() => {
@@ -819,6 +858,14 @@ export default function VideoCall() {
                 <Grid size={20} color="#fff" />
               </button>
             )}
+            <button
+  onClick={switchCamera}
+  className="control-btn"
+  title="Flip Camera"
+>
+  <RefreshCcw size={isMobile ? 20 : 22} color="#fff" />
+</button>
+
             <button onClick={toggleFullscreen} className="control-btn" title="Fullscreen">
               {isFullscreen ? <Minimize size={20} color="#fff" /> : <Maximize size={20} color="#fff" />}
             </button>
