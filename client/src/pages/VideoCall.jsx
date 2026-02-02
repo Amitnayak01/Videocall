@@ -50,6 +50,7 @@ export default function VideoCall() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [layoutMode, setLayoutMode] = useState("focus");
   const [hasRemoteStream, setHasRemoteStream] = useState(false);
+  const [showPlayButton, setShowPlayButton] = useState(false);
 
   // Function to go back to previous page
   const goBackToPreviousPage = useCallback(() => {
@@ -203,8 +204,8 @@ export default function VideoCall() {
           console.log(`  - ${track.kind} track: ${track.id}, enabled: ${track.enabled}`);
         });
         
-        // Set the remote video source
-        if (remoteVideo.current) {
+        // Only set srcObject if not already set (prevents AbortError from multiple track events)
+        if (remoteVideo.current && !remoteVideo.current.srcObject) {
           console.log("✅ Setting remote video srcObject");
           remoteVideo.current.srcObject = stream;
           setHasRemoteStream(true);
@@ -217,12 +218,12 @@ export default function VideoCall() {
                 playPromise
                   .then(() => {
                     console.log("✅ Remote video playing successfully");
+                    setShowPlayButton(false);
                   })
                   .catch(error => {
                     console.error("❌ Error playing remote video:", error);
-                    console.log("⚠️ Autoplay blocked - may need user interaction");
-                    // Try again after a delay
-                    setTimeout(attemptPlay, 500);
+                    console.log("⚠️ Autoplay blocked - showing play button");
+                    setShowPlayButton(true);
                   });
               }
             }
@@ -236,6 +237,8 @@ export default function VideoCall() {
           
           // Try to play immediately
           attemptPlay();
+        } else if (remoteVideo.current && remoteVideo.current.srcObject) {
+          console.log("ℹ️ Remote video srcObject already set, skipping to avoid AbortError");
         }
       }
     };
@@ -531,6 +534,19 @@ export default function VideoCall() {
     setCallDuration(0);
   };
 
+  const handleManualPlay = () => {
+    if (remoteVideo.current) {
+      remoteVideo.current.play()
+        .then(() => {
+          console.log("✅ Manual play successful");
+          setShowPlayButton(false);
+        })
+        .catch(err => {
+          console.error("❌ Manual play failed:", err);
+        });
+    }
+  };
+
   return (
     <div style={{
       margin: 0,
@@ -727,6 +743,55 @@ export default function VideoCall() {
           }}>
             <Video size={48} color="rgba(255, 255, 255, 0.5)" style={{ marginBottom: '12px' }} />
             <p>Waiting for {targetUsername}'s video...</p>
+          </div>
+        )}
+
+        {/* Manual Play Button (shown when autoplay is blocked) */}
+        {showPlayButton && hasRemoteStream && (
+          <div 
+            onClick={handleManualPlay}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              textAlign: 'center',
+              cursor: 'pointer',
+              background: 'rgba(0, 0, 0, 0.8)',
+              padding: '24px 48px',
+              borderRadius: '16px',
+              border: '2px solid rgba(59, 130, 246, 0.5)',
+              zIndex: 50
+            }}
+          >
+            <div style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: 'rgba(59, 130, 246, 0.9)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+              transition: 'all 0.3s ease'
+            }}>
+              <div style={{
+                width: 0,
+                height: 0,
+                borderLeft: '24px solid white',
+                borderTop: '16px solid transparent',
+                borderBottom: '16px solid transparent',
+                marginLeft: '6px'
+              }} />
+            </div>
+            <p style={{ 
+              color: '#fff', 
+              fontSize: '16px', 
+              fontWeight: '600',
+              margin: 0
+            }}>
+              Tap to play video
+            </p>
           </div>
         )}
 
