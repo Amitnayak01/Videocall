@@ -33,7 +33,7 @@ export default function VideoCall() {
   const localStream = useRef();
   const hasInitialized = useRef(false);
   const pendingCandidates = useRef([]);
-  const remoteStreamRef = useRef(null); // Store the remote stream
+  const remoteStreamRef = useRef(null);
 
   // Call states
   const [callState, setCallState] = useState("idle");
@@ -159,7 +159,6 @@ export default function VideoCall() {
       console.log("📹 Video tracks:", stream.getVideoTracks().length);
       console.log("🎤 Audio tracks:", stream.getAudioTracks().length);
       
-      // Log track details
       stream.getTracks().forEach(track => {
         console.log(`📊 Track: ${track.kind}, enabled: ${track.enabled}, readyState: ${track.readyState}`);
       });
@@ -204,31 +203,39 @@ export default function VideoCall() {
           console.log(`  - ${track.kind} track: ${track.id}, enabled: ${track.enabled}`);
         });
         
-        // Set the remote video source if not already set
-        if (remoteVideo.current && !remoteVideo.current.srcObject) {
+        // Set the remote video source
+        if (remoteVideo.current) {
           console.log("✅ Setting remote video srcObject");
           remoteVideo.current.srcObject = stream;
           setHasRemoteStream(true);
           
-          // Try to play the video
-          const playPromise = remoteVideo.current.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                console.log("✅ Remote video playing successfully");
-              })
-              .catch(error => {
-                console.error("❌ Error playing remote video:", error);
-                // Retry after a short delay
-                setTimeout(() => {
-                  if (remoteVideo.current) {
-                    remoteVideo.current.play()
-                      .then(() => console.log("✅ Retry successful"))
-                      .catch(e => console.error("❌ Retry failed:", e));
-                  }
-                }, 500);
-              });
-          }
+          // Force play with user interaction fallback
+          const attemptPlay = () => {
+            if (remoteVideo.current && remoteVideo.current.paused) {
+              const playPromise = remoteVideo.current.play();
+              if (playPromise !== undefined) {
+                playPromise
+                  .then(() => {
+                    console.log("✅ Remote video playing successfully");
+                  })
+                  .catch(error => {
+                    console.error("❌ Error playing remote video:", error);
+                    console.log("⚠️ Autoplay blocked - may need user interaction");
+                    // Try again after a delay
+                    setTimeout(attemptPlay, 500);
+                  });
+              }
+            }
+          };
+          
+          // Set loadedmetadata event to ensure video is ready
+          remoteVideo.current.onloadedmetadata = () => {
+            console.log("✅ Remote video metadata loaded");
+            attemptPlay();
+          };
+          
+          // Try to play immediately
+          attemptPlay();
         }
       }
     };
@@ -308,7 +315,7 @@ export default function VideoCall() {
     };
 
     initializeCall();
-  }, []); // Empty dependency array - only run once on mount
+  }, []);
 
   const startCall = async () => {
     try {
@@ -375,7 +382,7 @@ export default function VideoCall() {
       });
 
       setCallState("connected");
-      setIncomingCall(null); // Clear the incoming call from context
+      setIncomingCall(null);
       startCallTimer();
     } catch (err) {
       console.error("❌ Error accepting call:", err);
@@ -408,7 +415,6 @@ export default function VideoCall() {
       remoteVideo.current.srcObject = null;
     }
     
-    // Clear refs
     remoteStreamRef.current = null;
     
     navigate(-1);
@@ -417,7 +423,6 @@ export default function VideoCall() {
   const endCall = useCallback(() => {
     console.log("📴 Ending call");
     
-    // Emit end call event to server
     socket.emit("end-call", {
       toUserId: targetUserId,
       fromUserId: currentUserId
@@ -425,7 +430,6 @@ export default function VideoCall() {
 
     setCallState("ended");
     
-    // Cleanup and redirect
     setTimeout(() => {
       cleanupAndRedirect();
     }, 1000);
