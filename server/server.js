@@ -108,26 +108,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  /* ===== INVITE TO CALL (NEW) ===== */
-  socket.on("invite-to-call", ({ toUserId, fromUserId, fromUsername, existingCallUserId, existingCallUsername }) => {
-    console.log(`📲 Invite to call: ${fromUsername} inviting ${toUserId} to join call with ${existingCallUsername}`);
-
-    // Check if target user is online
-    const targetSocket = onlineUsers.get(toUserId);
-    if (targetSocket) {
-      console.log(`✅ Sending call-invitation to ${toUserId}`);
-      io.to(targetSocket).emit("call-invitation", {
-        fromUserId,
-        fromUsername,
-        existingCallUserId,
-        existingCallUsername
-      });
-    } else {
-      console.log(`❌ User ${toUserId} is not online`);
-      socket.emit("user-not-available");
-    }
-  });
-
   /* ===== ACCEPT CALL ===== */
   socket.on("accept-call", ({ toUserId, fromUserId, answer }) => {
     console.log(`✅ Call accepted: ${fromUserId} ↔️ ${toUserId}`);

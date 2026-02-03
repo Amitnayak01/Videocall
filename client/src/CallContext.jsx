@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { socket } from "./socket";
-import { Phone, UserPlus } from "lucide-react";
+import { Phone } from "lucide-react";
 
 const CallContext = createContext();
 
@@ -10,7 +10,6 @@ export const useCall = () => useContext(CallContext);
 export const CallProvider = ({ children }) => {
   const navigate = useNavigate();
   const [incomingCall, setIncomingCall] = useState(null);
-  const [callInvitation, setCallInvitation] = useState(null);
   const currentUserId = localStorage.getItem("userId");
 
   /* 🔥 REGISTER USER ONLINE ASAP */
@@ -18,7 +17,6 @@ export const CallProvider = ({ children }) => {
     if (!currentUserId) return;
 
     if (socket.connected) {
-      console.log("🟢 Registering user online:", currentUserId);
       socket.emit("user-online", currentUserId);
     }
 
@@ -35,50 +33,34 @@ export const CallProvider = ({ children }) => {
   /* 🚨 ATTACH CALL LISTENER ONCE */
   useEffect(() => {
     const handleIncomingCall = ({ fromUserId, fromUsername, offer }) => {
-      console.log("📞 INCOMING CALL RECEIVED from:", fromUsername, fromUserId);
+      console.log("📞 CALL RECEIVED:", fromUsername);
       setIncomingCall({ fromUserId, fromUsername, offer });
     };
 
-    const handleCallInvitation = ({ fromUserId, fromUsername, existingCallUserId, existingCallUsername }) => {
-      console.log("📲 CALL INVITATION RECEIVED");
-      console.log("   Invited by:", fromUsername, fromUserId);
-      console.log("   Should call:", existingCallUsername, existingCallUserId);
-      
-      setCallInvitation({ 
-        fromUserId,           // Person who invited you
-        fromUsername,         // Their name
-        existingCallUserId,   // Person you should call
-        existingCallUsername  // Their name
-      });
-    };
-
     const handleCallEnded = () => {
-      console.log("📴 Call ended → clearing state");
+      console.log("📴 Call ended → clearing incomingCall state");
       setIncomingCall(null);
-      setCallInvitation(null);
     };
 
     socket.on("incoming-call", handleIncomingCall);
-    socket.on("call-invitation", handleCallInvitation);
     socket.on("call-ended", handleCallEnded);
 
     return () => {
       socket.off("incoming-call", handleIncomingCall);
-      socket.off("call-invitation", handleCallInvitation);
       socket.off("call-ended", handleCallEnded);
     };
   }, []);
 
   const acceptCall = () => {
-    if (!incomingCall) {
-      console.log("❌ No incoming call to accept");
-      return;
-    }
+    if (!incomingCall) return;
     
-    console.log("✅ Accepting regular call from:", incomingCall.fromUsername);
+    console.log("✅ Accepting call from:", incomingCall.fromUsername);
     
     // Navigate to call page with incoming call data
     navigate(`/call?userId=${incomingCall.fromUserId}&username=${incomingCall.fromUsername}&incoming=true`);
+    
+    // Don't clear incomingCall immediately - let VideoCall component access it
+    // It will be cleared by VideoCall after processing
   };
 
   const declineCall = () => {
@@ -94,41 +76,10 @@ export const CallProvider = ({ children }) => {
     setIncomingCall(null);
   };
 
-  const acceptInvitation = () => {
-    if (!callInvitation) {
-      console.log("❌ No invitation to accept");
-      return;
-    }
-
-    console.log("✅ ACCEPTING INVITATION");
-    console.log("   I will call:", callInvitation.existingCallUsername);
-    console.log("   User ID:", callInvitation.existingCallUserId);
-
-    // CRITICAL: Call the person who is ALREADY in the call
-    // NOT the person who invited you!
-    const url = `/call?userId=${callInvitation.existingCallUserId}&username=${callInvitation.existingCallUsername}&incoming=false`;
-    console.log("🔄 Navigating to:", url);
-    
-    navigate(url);
-    
-    // Clear invitation
-    setTimeout(() => {
-      setCallInvitation(null);
-    }, 500);
-  };
-
-  const declineInvitation = () => {
-    if (!callInvitation) return;
-
-    console.log("❌ Declining call invitation");
-    setCallInvitation(null);
-  };
-
   return (
     <CallContext.Provider value={{ socket, incomingCall, setIncomingCall }}>
       {children}
 
-      {/* Regular Incoming Call Modal */}
       {incomingCall && (
         <div style={overlayStyle}>
           <div style={modalStyle}>
@@ -142,29 +93,6 @@ export const CallProvider = ({ children }) => {
                 Accept
               </button>
               <button onClick={declineCall} style={declineButtonStyle}>
-                Decline
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Call Invitation Modal */}
-      {callInvitation && (
-        <div style={overlayStyle}>
-          <div style={modalStyle}>
-            <div style={iconContainerStyle}>
-              <UserPlus size={50} color="#3b82f6" />
-            </div>
-            <h2 style={titleStyle}>Join Call?</h2>
-            <p style={textStyle}>
-              <strong>{callInvitation.fromUsername}</strong> invited you to join their call with <strong>{callInvitation.existingCallUsername}</strong>
-            </p>
-            <div style={buttonContainerStyle}>
-              <button onClick={acceptInvitation} style={acceptButtonStyle}>
-                Join Call
-              </button>
-              <button onClick={declineInvitation} style={declineButtonStyle}>
                 Decline
               </button>
             </div>
@@ -193,7 +121,6 @@ const modalStyle = {
   color: "white",
   textAlign: "center",
   minWidth: "320px",
-  maxWidth: "450px",
   border: "1px solid rgba(255, 255, 255, 0.1)",
   boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)",
 };
@@ -212,9 +139,8 @@ const titleStyle = {
 
 const textStyle = {
   fontSize: "16px",
-  color: "rgba(255, 255, 255, 0.8)",
+  color: "rgba(255, 255, 255, 0.7)",
   marginBottom: "30px",
-  lineHeight: "1.6",
 };
 
 const buttonContainerStyle = {
